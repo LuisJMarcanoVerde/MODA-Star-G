@@ -1,7 +1,8 @@
 MODA*-G — Mixed-Data Outlier Divergence Analysis with Softmax Gating
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
-![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19439683.svg)]
+(https://doi.org/10.5281/zenodo.19439683)
 Author: Luis J. Marcano Verde · Independent Statistical Consultant · New York, NY  
 Paper: Zenodo preprint
 ---
