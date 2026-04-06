@@ -3,7 +3,7 @@ MODA*-G — Mixed-Data Outlier Divergence Analysis with Softmax Gating
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19439683.svg)]
 (https://doi.org/10.5281/zenodo.19439683)
-Author: Luis J. Marcano Verde · Independent Statistical Consultant · New York, NY  
+Author: Luis J. Marcano-Verde · Independent Statistical Consultant · New York, NY  
 Paper: Zenodo preprint
 ---
 What is MODA*-G?
@@ -163,13 +163,13 @@ Citation
 If you use MODA*-G in your research, please cite:
 ```bibtex
 @misc{marcano2026modag,
-  author       = {Marcano Verde, Luis J.},
+  author       = {Marcano-Verde, Luis J.},
   title        = {{MODA*-G}: A Robust Mixed-Data Outlier Detection
                   Framework with Attention-based Softmax Gating},
   year         = {2026},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.XXXXXXX},
-  url          = {https://doi.org/10.5281/zenodo.XXXXXXX},
+  doi          = {10.5281/zenodo.19439683},
+  url          = {https://doi.org/10.5281/zenodo.19439683},
 }
 ```
 ---
