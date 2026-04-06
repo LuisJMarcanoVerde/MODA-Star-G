@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use MODA*-G in your research, please cite:"
+type: software
+title: "MODA*-G: Mixed-Data Outlier Divergence Analysis with Softmax Gating"
+version: 0.6.0
+date-released: 2026-04-05
+authors:
+  - family-names: Marcano Verde
+    given-names: Luis J.
+    email: luisjmarcanoverde@gmail.com
+    orcid: https://orcid.org/0009-0003-4672-1890
+abstract: >
+  MODA*-G is a novel unsupervised anomaly detection framework for tabular
+  data containing both numerical and categorical variables. It combines four
+  complementary statistical engines through a Softmax Gating mechanism,
+  achieving mean AUC-ROC of 0.978 across four canonical outlier scenarios
+  and 0.939 on the Annthyroid benchmark, outperforming Isolation Forest,
+  EIF, COPOD, CatBoost-AD, and LOF.
+keywords:
+  - outlier detection
+  - anomaly detection
+  - mixed data
+  - robust statistics
+  - softmax attention
+  - Gower distance
+  - minimum covariance determinant
+license: MIT
+repository-code: "https://github.com/luisjmarcano/MODA-Star-G"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Marcano Verde
+      given-names: Luis J.
+  title: "MODA*-G: A Robust Mixed-Data Outlier Detection Framework with Attention-based Softmax Gating"
+  year: 2026
+  url: "https://doi.org/10.5281/zenodo.XXXXXXX"
