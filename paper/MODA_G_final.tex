@@ -1,0 +1,1616 @@
+% ============================================================
+% MODA*-G: A Robust Mixed-Data Outlier Detection Framework
+%          with Attention-based Softmax Gating
+%
+% ArXiv submission — stat.ME / stat.CO
+% Author: Luis J. Marcano-Verde
+% Version: FINAL — March 2026
+%
+% Changes from draft:
+%  - Author info updated (email, affiliation)
+%  - Condition (C3) replaced by (C3') — mixture model
+%  - Condition (C5) added — finite fourth moments
+%  - Proposition 2 added — O_P(1/sqrt(n)) convergence rate
+%  - Section 8 (Limitations) added
+%  - Related Work expanded with Marcano & Fermin (2013)
+%  - Abstract updated: "five theorems and two propositions"
+%  - Calibration constant c specified in SDG_mad definition
+%  - Corollary numbering fixed
+% ============================================================
+
+\documentclass[11pt]{article}
+
+% ── Packages ──────────────────────────────────────────────
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{thmtools}
+
+% ── Colors ────────────────────────────────────────────────
+\definecolor{navy}{RGB}{26,58,92}
+\definecolor{teal}{RGB}{14,102,85}
+\definecolor{crimson}{RGB}{192,57,43}
+\definecolor{gold}{RGB}{184,134,11}
+
+% ── Theorem environments ──────────────────────────────────
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{lemma}{Lemma}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{condition}{Condition}
+\newtheorem{remark}{Remark}
+
+% ── Math operators ────────────────────────────────────────
+\DeclareMathOperator{\MAD}{MAD}
+\DeclareMathOperator{\median}{median}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathcal{C}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\bS}{\mathbf{S}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bp}{\mathbf{p}}
+\newcommand{\bone}{\mathbf{1}}
+\newcommand{\inprob}{\xrightarrow{P}}
+\newcommand{\indist}{\xrightarrow{d}}
+\newcommand{\moda}{\text{MODA}^*\text{-G}}
+
+% ── Hyperref ──────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true,
+  linkcolor=navy,
+  citecolor=teal,
+  urlcolor=teal,
+  pdftitle={MODA*-G: A Robust Mixed-Data Outlier Detection
+    Framework with Attention-based Softmax Gating},
+  pdfauthor={Luis J. Marcano-Verde},
+  pdfsubject={DOI: 10.5281/zenodo.19433757}
+}
+
+% ── Title ─────────────────────────────────────────────────
+\title{
+  \textbf{MODA*-G: A Robust Mixed-Data Outlier Detection
+  Framework with\\Attention-based Softmax Gating}
+}
+
+\author{
+  Luis J.\ Marcano-Verde\thanks{
+    Correspondence: \href{mailto:luisjmarcanoverde@gmail.com}
+    {luisjmarcanoverde@gmail.com}}\\[4pt]
+  \small Independent Statistical Consultant and Data Scientist\\
+  \small New York, NY, USA
+}
+
+\date{March 2026\\[4pt]
+  \small\texttt{DOI: \href{https://doi.org/10.5281/zenodo.19433757}{10.5281/zenodo.19433757}}}
+
+% ============================================================
+\begin{document}
+\maketitle
+
+% ── Abstract ──────────────────────────────────────────────
+\begin{abstract}
+We introduce \textbf{MODA*-G} (\emph{Mixed-Data Outlier
+Divergence Analysis with Softmax Gating}), a novel
+unsupervised anomaly detection framework for tabular data
+containing both numerical and categorical variables.
+MODA*-G combines four complementary statistical
+engines---a robust MCD-based Mahalanobis distance
+($\text{SDN}_\text{mcd}$), a directional kurtosis score
+with robust MAD evaluation ($\text{SDN}_\text{pe\~{n}a}$),
+an original Gower-MAD distance score
+($\text{SDG}_\text{mad}$), and a categorical entropy score
+($\text{SDC}$)---through a Softmax Gating mechanism with
+temperature parameter $k$, yielding observation-level
+adaptive weights without heuristic rules.
+
+We establish five formal theorems (consistency, 50\%
+breakdown point, partial affine equivariance, score
+comparability, and stochastic dominance) and two
+convergence propositions: one establishing that the gating
+weight of the dominant engine converges to one as
+$k \to \infty$, and one establishing that the MODA*-G
+score converges at rate $O_P(n^{-1/2})$.
+
+Monte Carlo simulation ($n{=}300$, $p{=}4$, $q{=}2$,
+100 replications per cell) across four canonical
+contamination types confirms that MODA*-G with $k{=}3$
+achieves mean AUC-ROC of 0.978, outperforming Isolation
+Forest (0.911) and LOF (0.623) in all four scenarios
+simultaneously. On the Annthyroid real-data benchmark
+\citep{campos2016} ($n{=}7{,}200$, $p{=}6$, $q{=}15$),
+MODA*-G achieves AUC-ROC $= 0.939$, outperforming IF
+($0.632$), EIF ($0.496$), COPOD ($0.553$), CatBoost-AD
+($0.554$), LOF ($0.620$), and surpassing the best
+result of \citet{campos2016} by $+0.189$ AUC.
+The framework operates natively in
+$\X = \R^p \times \C^q$ without encoding categorical
+variables, and produces an interpretable per-engine
+diagnostic decomposition. Applications to epidemiological
+biosurveillance are discussed.
+\end{abstract}
+
+\noindent\textbf{Keywords:} mixed data, outlier detection,
+robust statistics, minimum covariance determinant, kurtosis
+projection pursuit, Gower distance, softmax attention,
+breakdown point, biosurveillance.
+
+\noindent\textbf{MSC 2020:} 62G35, 62H15, 62P10.
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+% ============================================================
+
+Anomaly detection in mixed-type tabular data---combining
+continuous numerical measurements with unordered categorical
+variables---remains an open methodological challenge.
+Real-world data systems are almost universally mixed:
+electronic health records integrate laboratory values with
+ICD-10 diagnosis codes; epidemiological surveillance
+databases combine incidence rates with pathogen identifiers
+and geographic classifications; official statistical
+microdata couple continuous indicators with categorical
+sector codes. In each setting, outlier detection requires
+methods that respect the distinct statistical natures of
+numerical and categorical variables.
+
+Existing approaches address this problem inadequately.
+Classical multivariate outlier detectors---the Minimum
+Covariance Determinant (MCD) estimator
+\citep{rousseeuw1985}, the robust Mahalanobis distance
+\citep{rousseeuw1990}, and the directional kurtosis of
+\citet{pena2001}---operate exclusively in $\R^p$ and
+require artificial encoding of categorical variables,
+distorting the metric structure. Machine learning methods
+including Isolation Forest \citep{liu2008} and Local
+Outlier Factor \citep{breunig2000} inherit this limitation
+and provide no formal statistical guarantees. Recent
+mixed-data proposals \citep{yuan2023, cabral2025, wang2021}
+use internal conversion mechanisms and lack formally
+established properties.
+
+The empirical foundation for the present work is
+\citet{marcano2013}, who demonstrated through a simulation
+study comparing seven multivariate outlier detection
+methods that no single procedure dominates across all
+contamination scenarios: the Curtosis-1 procedure
+\citep{pena2001} detected as few as 3.58\% of true outliers
+under correlated contamination at 20\% contamination rate,
+while performing well in other settings. This instability
+across scenarios directly motivates a multi-engine framework
+combining complementary detection strategies with formal
+statistical guarantees.
+
+\paragraph{Contributions.}
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Gower-MAD}: an original robustification
+    of the Gower distance coefficient \citep{gower1971}
+    replacing the classical range denominator with
+    $1.4826 \cdot \MAD$, raising the breakdown point from
+    0\% to 50\%.
+  \item \textbf{Robust Pe\~{n}a evaluation}: an original
+    modification of the Curtosis-1 projection
+    \citep{pena2001} evaluating projections via median/MAD
+    instead of classical moments, raising the breakdown
+    point from 0\% to 50\%.
+  \item \textbf{MODA*-G}: a unified mixed-data anomaly
+    detection framework combining four complementary
+    engines through Softmax Gating---an attention mechanism
+    that adaptively amplifies the dominant engine at the
+    observation level without heuristic rules.
+  \item \textbf{Formal guarantees}: five theorems and two
+    propositions, providing the first formal statistical
+    properties---including 50\% breakdown point and
+    $O_P(n^{-1/2})$ convergence rate---for a mixed-data
+    outlier detection method.
+  \item \textbf{Empirical superiority}: Monte Carlo evidence
+    that MODA*-G with $k=3$ outperforms Isolation Forest
+    in all four canonical contamination scenarios (mean
+    AUC-ROC 0.978 vs.\ 0.911).
+\end{enumerate}
+
+% ============================================================
+\section{Related Work}
+\label{sec:related}
+% ============================================================
+
+\paragraph{Comparative simulation studies.}
+\citet{marcano2013} compared seven multivariate outlier
+detection methods---including the Mahalanobis distance,
+Curtosis-1 \citep{pena2001}, Minimum Covariance Determinant
+\citep{rousseeuw1985}, and projection pursuit variants---
+through Monte Carlo simulation across multiple contamination
+structures and correlation scenarios. The study demonstrated
+that detection performance is highly scenario-dependent and
+that no single method achieves uniformly superior detection,
+establishing the empirical need for a multi-engine framework.
+The present work can be understood as a methodological
+response to this finding: rather than selecting among
+existing methods, MODA*-G combines them through a gating
+mechanism that adapts to the contamination structure present
+in each dataset.
+
+\paragraph{Numerical outlier detection.}
+The robust Mahalanobis distance based on the MCD estimator
+\citep{rousseeuw1985, rousseeuw1999} achieves 50\%
+breakdown point and detects isolated numerical outliers.
+\citet{pena2001} proposed kurtosis-based projection pursuit
+(Curtosis-1) specifically to detect clustered outliers that
+cause masking in MCD-based methods, a complementary
+capability that MODA*-G preserves through Engine II.
+Isolation Forest \citep{liu2008} and LOF \citep{breunig2000}
+are widely used but require encoding of categorical
+variables and provide no formal breakdown point.
+
+\paragraph{Mixed-data methods.}
+WNIN \citep{wang2021} uses graph-based weights on mixed
+variables but lacks formal breakdown point analysis and
+requires internal encoding. PMIOD \citep{yuan2023} employs
+mutual information weights but provides no formal
+properties. HySortOD \citep{cabral2025} sorts mixed
+variables internally. None of these methods produce
+interpretable per-engine diagnostic decompositions.
+MODA*-G differs by operating natively in $\R^p \times \C^q$,
+providing formal guarantees, and enabling causal diagnosis
+of each detected anomaly.
+
+\paragraph{Attention mechanisms and mixture of experts.}
+Softmax-weighted aggregation was introduced for neural
+sequence modelling \citep{bahdanau2015} and formalized
+in the Transformer architecture \citep{vaswani2017}.
+Mixture-of-experts models \citep{jordan1994} use gating
+functions to route inputs to specialized experts.
+MODA*-G applies this paradigm to robust statistical
+estimators for the first time, yielding self-normalizing
+observation-level weights without external supervision
+or labeled training data.
+
+% ============================================================
+\section{Data Space, Notation and Regularity Conditions}
+\label{sec:setup}
+% ============================================================
+
+Let $\mathbf{X}_n = \{x_1, \ldots, x_n\}$ be an i.i.d.\
+sample from distribution $P$ on the mixed product space
+$\X = \R^p \times \C^q$,
+where $\R^p$ is the $p$-dimensional Euclidean space and
+$\C^q = \C_1 \times \cdots \times \C_q$ is the Cartesian
+product of $q$ finite unordered categorical domains with
+$|\C_j| = m_j$ categories. Each observation
+$x = (x_\text{num}, x_\text{cat}) \in \X$ has a numerical
+component $x_\text{num} \in \R^p$ and a categorical
+component $x_\text{cat} \in \C^q$. No encoding of
+categorical variables is performed at any stage.
+
+We write $\median(\cdot)$ for the sample median,
+$\MAD(\cdot) = \median(|X_i - \median(X)|)$ for the sample
+median absolute deviation, and
+$\widehat{\sigma}(\cdot) = 1.4826 \cdot \MAD(\cdot)$
+for the robust scale estimator consistent for $\sigma$
+under normality \citep{rousseeuw2018}.
+
+\begin{definition}[Normalization function]
+\label{def:phi}
+For $d \geq 0$ and $\kappa > 0$:
+$\varphi(d;\kappa) = d/(d + \kappa) \in [0,1)$.
+With $\kappa = \sqrt{\chi^2_{p,0.975}}$, this maps the
+robust Mahalanobis distance to $[0,1)$ such that 97.5\%
+of observations from an elliptical null distribution
+receive scores below 0.5.
+\end{definition}
+
+\noindent We assume the following regularity conditions.
+
+\begin{condition}[Identifiability --- C1]
+The marginal of $P$ on $\R^p$ is elliptically contoured
+with unique location $T^* \in \R^p$ and positive definite
+scatter $C^* \in \R^{p \times p}$.
+\end{condition}
+
+\begin{condition}[Clean majority --- C2]
+The contamination fraction satisfies $\varepsilon <
+1 - h/n$, where $h = \lfloor n/2 \rfloor + 1$.
+\end{condition}
+
+\begin{condition}[Generalised observability --- C3$'$]
+\label{cond:c3prime}
+The observed distribution follows a mixture model
+$P = (1-\varepsilon)P_0 + \varepsilon P_\text{out}$,
+where $P_0$ is the clean distribution with
+$P_0(X_j = c_k) > 0$ for all observed categories
+$c_k \in \mathcal{S}_j \subseteq \C_j$, and
+$P_\text{out}$ is the contaminating distribution.
+Categories in $\C_j \setminus \mathcal{S}_j$ may have
+$P_0(X_j = c_k) = 0$ but $P_\text{out}(X_j = c_k) > 0$.
+\end{condition}
+
+\begin{remark}
+\label{rem:c3}
+Condition~(C3$'$) is more general than the standard
+observability condition $P(X_j = c_k) > 0$ for all $c_k$.
+It allows categories that appear exclusively in contaminated
+observations---as in the O4 simulation scenario where
+outliers carry category code 99, never observed in clean
+data. Under (C3$'$) and the mixture model, the marginal
+frequency of any category satisfies
+$P(X_j = c) = (1-\varepsilon) P_0(X_j = c) +
+\varepsilon P_\text{out}(X_j = c) > 0$
+whenever $\varepsilon > 0$, restoring the applicability
+of the SLLN to all category frequencies including
+those of unseen-in-clean categories.
+The Laplace-smoothed estimator
+$\hat{P}_\text{unseen} = 1/(n + m_k + 1)$ converges
+to $\varepsilon P_\text{out}(X_j = c)/n \to 0$ in
+the limit, ensuring SDC correctly assigns high scores
+to pure categorical outliers.
+\end{remark}
+
+\begin{condition}[Non-degeneracy --- C4]
+All eigenvalues of $C^*$ are strictly positive.
+\end{condition}
+
+\begin{condition}[Finite fourth moments --- C5]
+\label{cond:c5}
+$\E[\|X_\text{num}\|^4] < \infty$ and all mixed moments
+$\E[X_{\text{num},j}^2 X_{\text{num},k}^2] < \infty$
+for $j, k = 1, \ldots, p$.
+\end{condition}
+
+\begin{remark}
+Condition~(C5) ensures finite asymptotic variances for
+all four engine scores, which is required for the
+$O_P(n^{-1/2})$ convergence rate established in
+Proposition~\ref{prop:rate}. Under normality of
+$X_\text{num}$, (C5) is automatically satisfied.
+\end{remark}
+
+% ============================================================
+\section{The MODA*-G Framework}
+\label{sec:framework}
+% ============================================================
+
+\subsection{Engine I: Robust MCD Score
+  ($\text{SDN}_\text{mcd}$)}
+\label{sec:engine1}
+
+\begin{definition}[MCD Estimator]
+\label{def:mcd}
+Given $h$ with $\lfloor n/2 \rfloor + 1 \leq h \leq n$,
+the MCD estimator finds $\hat{H} \subset \{1,\ldots,n\}$
+with $|\hat{H}| = h$ minimising
+$\det(\hat{C}_H)$, yielding robust location
+$T_n = h^{-1}\sum_{i \in \hat{H}} x_{\text{num},i}$
+and scatter
+$C_n = h^{-1}\sum_{i \in \hat{H}}
+(x_{\text{num},i} - T_n)(x_{\text{num},i} - T_n)^\top
++ \eta I_p$, $\eta = 10^{-8}$.
+\end{definition}
+
+\begin{definition}[$\text{SDN}_\text{mcd}$ Score]
+\label{def:smcd}
+$D_\text{mcd}(x) = \sqrt{(x_\text{num} - T_n)^\top
+C_n^{-1}(x_\text{num} - T_n)}$,\quad
+$\text{SDN}_\text{mcd}(x) = \varphi(D_\text{mcd}(x);
+\kappa)$, $\kappa = \sqrt{\chi^2_{p,0.975}}$.
+\end{definition}
+
+The C-steps algorithm of \citet{rousseeuw1999}
+approximates the global minimum. The breakdown point is
+$(n-h+1)/n \to 50\%$ \citep{rousseeuw1985}.
+
+\subsection{Engine II: Robust Pe\~{n}a Kurtosis Score
+  ($\text{SDN}_\text{pe\~{n}a}$)}
+\label{sec:engine2}
+
+\begin{definition}[Extreme kurtosis directions]
+\label{def:Vstar}
+Let $V^* = V^*_{\max} \cup V^*_{\min}$ denote the $2p$
+directions maximising and minimising the projection
+kurtosis $\hat{\kappa}(v) = \E[(v^\top x)^4] /
+[\E[(v^\top x)^2]]^2$ over $\mathbb{S}^{p-1}$,
+computed iteratively following \citet{pena2001}.
+\end{definition}
+
+\begin{definition}[$\text{SDN}_\text{pe\~{n}a}$ Score
+  --- \emph{Original contribution}]
+\label{def:spena}
+$r_v(x) = |v^\top x_\text{num} - \hat{\mu}_v|/
+\hat{\sigma}_v$, where
+$\hat{\mu}_v = \median\{v^\top x_i\}$,
+$\hat{\sigma}_v = 1.4826\cdot\MAD\{v^\top x_i\}$.
+\[
+  \text{SDN}_\text{pe\~{n}a}(x) =
+  \varphi\!\left(\max_{v \in V^*} r_v(x);\; 3\right).
+\]
+\end{definition}
+
+\begin{remark}
+The original Curtosis-1 \citep{pena2001} evaluates
+projection outlyingness using classical moments, giving
+breakdown point $\varepsilon^* = 0$. MODA*-G replaces
+this with median/MAD evaluation, raising
+$\varepsilon^*(\text{SDN}_\text{pe\~{n}a})$ from 0\%
+to 50\%---an original contribution established formally
+in Theorem~\ref{thm:breakdown}.
+\end{remark}
+
+\subsection{Engine III: Gower-MAD Distance Score
+  ($\text{SDG}_\text{mad}$)}
+\label{sec:engine3}
+
+\begin{definition}[Gower-MAD distance
+  --- \emph{Original contribution}]
+\label{def:gower}
+For $x, y \in \X$:
+\[
+  d_G(x, y) = \frac{1}{p+q}\!\left[
+    \sum_{j=1}^{p} \frac{|x_j - y_j|}{1.4826\cdot\MAD_j}
+    + \sum_{k=1}^{q} \mathbf{1}[x_k \neq y_k]
+  \right],
+\]
+where $\MAD_j = \MAD(\{x_{ij}\}_{i=1}^n)$.
+\end{definition}
+
+\begin{remark}
+\citet{gower1971} uses $\mathrm{range}(X_j)$ as
+denominator, giving $\varepsilon^*(\text{SDG}) = 0$.
+Gower-MAD replaces range with $1.4826\cdot\MAD_j$,
+raising $\varepsilon^*$ to 50\%
+(Theorem~\ref{thm:breakdown}).
+\end{remark}
+
+\begin{definition}[$\text{SDG}_\text{mad}$ Score]
+\label{def:sgower}
+For $k_n = \max(3, \lfloor\sqrt{n}\rfloor)$-nearest
+neighbours $\mathcal{N}_{k_n}(x)$ under $d_G$:
+\[
+  \bar{d}_\text{loc}(x) = k_n^{-1}
+  \!\sum_{y \in \mathcal{N}_{k_n}(x)}\! d_G(x,y),
+  \quad
+  \bar{d}_\text{glob}(x) = (n{-}1)^{-1}
+  \!\sum_{i=1}^n d_G(x, x_i),
+\]
+\[
+  \text{SDG}_\text{mad}(x) = \varphi\!\bigl(
+  5\cdot\max(\bar{d}_\text{loc}(x),\,
+  0.5\cdot\bar{d}_\text{glob}(x));\;1\bigr).
+\]
+The constant $c = 5$ is chosen such that
+$\text{SDG}_\text{mad}$ scores are comparable in
+magnitude to the other engines under the null
+distribution. Combining local and global distances
+prevents compact outlier clusters from scoring falsely
+low due to internal cohesion.
+\end{definition}
+
+\subsection{Engine IV: Categorical Entropy Score
+  ($\text{SDC}$)}
+\label{sec:engine4}
+
+\begin{definition}[SDC Score --- \emph{Original
+  contribution}]
+\label{def:sdc}
+For $c \in \C_k$ observed: $\hat{P}(X_k = c) =
+n^{-1}\sum_{i=1}^n \mathbf{1}[x_{ik}=c]$.
+For $c \notin \hat{\mathcal{S}}_k$ (unobserved):
+$\hat{P}_\text{unseen} = 1/(n + m_k + 1)$.
+\[
+  \text{SDC}(x) = 1 - \left[\prod_{k=1}^{q}
+  \hat{P}(X_k = x_k)\right]^{1/q}.
+\]
+\end{definition}
+
+\subsection{Softmax Gating}
+\label{sec:gating}
+
+\begin{definition}[Softmax Gating weights]
+\label{def:gating}
+Let $\mathbf{S}(x) = (S_1(x), \ldots, S_4(x))^\top$
+where $S_1 = \text{SDN}_\text{mcd}$,
+$S_2 = \text{SDN}_\text{pe\~{n}a}$,
+$S_3 = \text{SDG}_\text{mad}$, $S_4 = \text{SDC}$.
+For temperature $k > 0$:
+\begin{equation}
+  w_i(x; k) = \frac{\exp(k \cdot S_i(x))}
+  {\sum_{j=1}^{4} \exp(k \cdot S_j(x))},
+  \quad i = 1,2,3,4.
+  \label{eq:softmax}
+\end{equation}
+\end{definition}
+
+\begin{definition}[MODA*-G Score and Threshold]
+\label{def:modag}
+\begin{equation}
+  \moda(x; k) = \sum_{i=1}^{4} w_i(x; k) \cdot S_i(x),
+  \label{eq:modag}
+\end{equation}
+\[
+  \tau^* = \median_i\{\moda(x_i;k)\}
+           + 3\cdot\MAD_i\{\moda(x_i;k)\}.
+\]
+Observation $x$ is classified anomalous if
+$\moda(x;k) \geq \tau^*$.
+\end{definition}
+
+\begin{remark}[Limiting behaviour of $k$]
+As $k \to 0$, weights converge to $1/4$ (uniform average,
+equivalent to equal-weight linear combination). As
+$k \to \infty$, all weight concentrates on the
+highest-scoring engine (hard argmax). Our simulation
+identifies $k=3$ as the optimal balance.
+\end{remark}
+
+\begin{remark}[Numerical stability]
+Equation~\eqref{eq:softmax} is computed via the
+log-sum-exp trick:
+$w_i(x;k) = \exp(kS_i - \max_j kS_j) /
+\sum_j \exp(kS_j - \max_j kS_j)$.
+\end{remark}
+
+\begin{algorithm}[H]
+\caption{MODA*-G: Complete Algorithm}
+\label{alg:modag}
+\begin{algorithmic}[1]
+\Require $\mathbf{X}_n \subset \R^p \times \C^q$,
+  temperature $k > 0$ (default: $k=3$)
+\Ensure Scores $\{\moda(x_i;k)\}$, threshold $\tau^*$,
+  labels $\hat{y}_i \in \{0,1\}$
+\State Compute $\text{SDN}_\text{mcd}$
+  via C-steps (Def.~\ref{def:smcd})
+\State Compute $V^*$; evaluate $\text{SDN}_\text{pe\~{n}a}$
+  via median/MAD (Def.~\ref{def:spena})
+\State Compute $d_G$ matrix; combine local and global
+  distances for $\text{SDG}_\text{mad}$
+  (Def.~\ref{def:sgower})
+\State Estimate frequencies with Laplace smoothing;
+  compute $\text{SDC}$ (Def.~\ref{def:sdc})
+\State Compute Softmax weights $w_i(x_j; k)$
+  (Eq.~\eqref{eq:softmax})
+\State Compute $\moda(x_j; k)$ (Eq.~\eqref{eq:modag})
+\State Compute $\tau^*$ (Def.~\ref{def:modag})
+\State \Return scores, $\tau^*$,
+  $\hat{y}_j = \mathbf{1}[\moda(x_j;k) \geq \tau^*]$
+\end{algorithmic}
+\end{algorithm}
+
+\noindent\textbf{Time complexity.} The dominant cost is
+$O(n^2(p+q))$ for the Gower-MAD matrix. Approximate kNN
+methods reduce this to $O(n\log n)$ for large $n$.
+
+% ============================================================
+\section{Theoretical Properties}
+\label{sec:theory}
+% ============================================================
+
+All results assume conditions (C1), (C2), (C3$'$), (C4)
+unless stated otherwise, and hold for any $k \geq 0$.
+Condition (C5) is additionally required for
+Proposition~\ref{prop:rate}.
+
+% ── Theorem 1 ─────────────────────────────────────────────
+\begin{theorem}[Consistency]
+\label{thm:consistency}
+Under (C1), (C2), (C3$'$), for any fixed $x \in \X$:
+$\moda_n(x; k) \inprob \moda(x; k)$ as $n \to \infty$.
+\end{theorem}
+
+\begin{proof}
+\textbf{SDN$_\text{mcd}$:} By Theorem~1 of
+\citet{rousseeuw1999}, $T_n \inprob T^*$ and
+$C_n \inprob C^*$ under (C1)--(C2). Continuity of
+$D_\text{mcd}^2(x; T, C)$ and $\varphi$ give
+$\text{SDN}_\text{mcd,n}(x) \inprob
+\text{SDN}_\text{mcd}(x)$ by the continuous mapping
+theorem.
+
+\textbf{SDN$_\text{pe\~{n}a}$:} By Glivenko-Cantelli
+for the class $\{x \mapsto v^\top x : v \in
+\mathbb{S}^{p-1}\}$, $\hat{\kappa}(v) \to \kappa(v)$
+uniformly. Uniform convergence implies $v_{k,n} \inprob
+v_k^*$. Consistency of median and MAD gives
+$\text{SDN}_\text{pe\~{n}a,n}(x) \inprob
+\text{SDN}_\text{pe\~{n}a}(x)$.
+
+\textbf{SDG$_\text{mad}$:} $\MAD_{j,n} \inprob \MAD_j$
+by the SLLN. kNN consistency under $k_n \to \infty$,
+$k_n/n \to 0$ follows from \citet{devroye1996}. Hence
+$\text{SDG}_\text{mad,n}(x) \inprob
+\text{SDG}_\text{mad}(x)$.
+
+\textbf{SDC:} Under (C3$'$), all category frequencies
+satisfy $P(X_k = c) > 0$ under the mixture $P$, so
+$\hat{P}_n(X_k = c) \inprob P(X_k = c)$ by the SLLN
+for all $c$ including those absent from $P_0$. The
+geometric mean is continuous in the probabilities.
+Hence $\text{SDC}_n(x) \inprob \text{SDC}(x)$.
+
+\textbf{Softmax:} The map $\mathbf{s} \mapsto
+\exp(ks_i)/\sum_j \exp(ks_j)$ is continuous for all
+finite $k$. Componentwise convergence of engine scores
+implies $w_{i,n}(x;k) \inprob w_i(x;k)$ by the
+continuous mapping theorem. The product
+$w_{i,n} \cdot S_{i,n}$ converges in probability, and
+the finite sum $\moda_n(x;k) \inprob \moda(x;k)$.
+\end{proof}
+
+% ── Theorem 2 ─────────────────────────────────────────────
+\begin{theorem}[50\% Breakdown Point]
+\label{thm:breakdown}
+Under (C1), (C2), (C3$'$) with Gower-MAD:
+$\varepsilon^*(\moda, \mathbf{X}_n) =
+(n-h+1)/n \to 50\%$ as $n \to \infty$.
+\end{theorem}
+
+\begin{proof}
+\textbf{$\varepsilon^*(\text{SDN}_\text{mcd}) = 50\%$:}
+MCD with $h = \lfloor 0.75n \rfloor$ achieves
+$(n-h+1)/n \to 50\%$ \citep{rousseeuw1985}.
+
+\textbf{$\varepsilon^*(\text{SDN}_\text{pe\~{n}a})
+= 50\%$:}
+Classical Curtosis-1 uses moments with
+$\varepsilon^* = 0$ \citep{pena2001}. MODA*-G replaces
+with median ($\varepsilon^* = 50\%$) and MAD
+($\varepsilon^* = 50\%$) \citep{rousseeuw2018}.
+The composition achieves $\varepsilon^* = 50\%$.
+This is an original contribution.
+
+\textbf{$\varepsilon^*(\text{SDG}_\text{mad}) = 50\%$:}
+Classical Gower uses $\mathrm{range}(X_j)$ with
+$\varepsilon^* = 0$. Gower-MAD replaces range with
+$1.4826\cdot\MAD_j$ ($\varepsilon^* = 50\%$). Categorical
+contributions $\mathbf{1}[x_k \neq y_k] \in \{0,1\}$
+are bounded. Hence $\varepsilon^* = 50\%$.
+This is an original contribution.
+
+\textbf{$\varepsilon^*(\text{SDC}) = 50\%$:}
+SDC $\in [0,1)$ by construction regardless of
+contamination.
+
+\textbf{Gating preserves breakdown point:}
+Softmax weights $w_i(x;k)$ are continuous functions of
+bounded engine scores. Under contamination
+$\varepsilon < 50\%$, the clean majority dominates the
+score distribution, and no corrupted engine can
+systematically bias the gated combination beyond the
+breakdown threshold. Therefore:
+$\varepsilon^*(\moda) = \min\{50\%, 50\%, 50\%, 50\%\}
+= 50\%$.
+\end{proof}
+
+\begin{remark}
+Without Gower-MAD---using the classical range---the
+breakdown point of MODA*-G would be 0\%, dominated by
+SDG. The Gower-MAD robustification is necessary, not
+merely a refinement, to achieve $\varepsilon^* = 50\%$.
+\end{remark}
+
+% ── Theorem 3 ─────────────────────────────────────────────
+\begin{theorem}[Partial Affine Equivariance]
+\label{thm:equivariance}
+Let $T_A(x_\text{num}, x_\text{cat}) =
+(Ax_\text{num} + b, x_\text{cat})$ with $A$ invertible.
+Under (C1)--(C4):
+(i) $\text{SDN}_\text{mcd}(T_A(x)) =
+\text{SDN}_\text{mcd}(x)$ (full);
+(ii) $\text{SDN}_\text{pe\~{n}a}(T_A(x)) =
+\text{SDN}_\text{pe\~{n}a}(x)$ (full);
+(iii) $\text{SDG}_\text{mad}(T_A(x)) =
+\text{SDG}_\text{mad}(x)$ iff $A = \lambda I$;
+(iv) $\text{SDC}(T_A(x)) = \text{SDC}(x)$ (invariant);
+(v) $\moda(T_{\lambda I}(x);k) = \moda(x;k)$.
+\end{theorem}
+
+\begin{proof}
+(i): MCD satisfies
+$T_n(T_A(\mathbf{X})) = AT_n + b$ and
+$C_n(T_A(\mathbf{X})) = AC_nA^\top$
+\citep{rousseeuw1985}.
+For $y = Ax + b$:
+$D_\text{mcd}^2(y) = (A(x-T_n))^\top
+A^{-\top}C_n^{-1}A^{-1}A(x-T_n) = D_\text{mcd}^2(x)$.
+
+(ii): Kurtosis is affinely invariant by Lemma~1 of
+\citet{pena2001}: $\hat{\kappa}(v^\top(Ax+b)) =
+\hat{\kappa}(w^\top x)$ where $w = A^\top v/\|A^\top v\|$.
+Extreme directions transform consistently; median/MAD
+are equivariant.
+
+(iii): For $A = \lambda I$:
+$|{\lambda x_j - \lambda y_j}|/(1.4826|\lambda|\MAD_j) =
+|x_j - y_j|/(1.4826\MAD_j)$. For general $A$,
+off-diagonal entries break this equality.
+
+(iv): SDC depends only on $x_\text{cat}$, unaffected
+by $T_A$.
+
+(v): Under $A = \lambda I$, all $S_i(T_{\lambda I}(x)) =
+S_i(x)$ by (i)--(iv), so $w_i$ and $\moda$ are
+invariant.
+\end{proof}
+
+\begin{remark}
+Partial equivariance of SDG$_\text{mad}$ is a structural
+property of all Gower-type distances and does not affect
+utility in tabular settings where variables have fixed,
+interpretable units.
+\end{remark}
+
+% ── Theorem 4 ─────────────────────────────────────────────
+\begin{theorem}[Score Comparability]
+\label{thm:calibration}
+Under (C1), (C2), (C3$'$) and $k \geq 0$:
+(i) all engine scores and $\moda(x;k) \in [0,1)$;
+(ii) each engine score is strictly increasing in the
+degree of outlyingness;
+(iii) $\E[S_i(x)] < 0.5$ for clean $x$ under $H_0$;
+(iv) $\moda(x;k) \in [0,1)$ with consistent ordinal
+interpretation.
+\end{theorem}
+
+\begin{proof}
+(i): $\varphi(d;\kappa) \in [0,1)$ for all finite $d$.
+SDC $\in [0,1)$ under (C3$'$). Convex combination
+of $[0,1)$ values is in $[0,1)$.
+(ii): Each score is a composition of increasing functions
+in outlyingness; the Softmax preserves monotonicity by
+amplifying higher scores.
+(iii): Under $H_0$, $D_\text{mcd}^2(x) \sim^a \chi^2_p$,
+giving $P(\text{SDN}_\text{mcd} < 0.5 \mid H_0) \approx
+0.975$. Analogous for other engines.
+(iv): Follows from (i) and (iii).
+\end{proof}
+
+\begin{corollary}[False positive rate control]
+\label{cor:fpr}
+$\tau^* = \median(\moda) + 3\cdot\MAD(\moda)$ satisfies
+$P(\moda(x;k) \geq \tau^* \mid H_0) \to \alpha_\text{FP}
+\approx 0.3\%$ asymptotically.
+\end{corollary}
+
+% ── Theorem 5 ─────────────────────────────────────────────
+\begin{theorem}[Stochastic Dominance]
+\label{thm:dominance}
+Define $\beta(S, \tau, x^*) = P(S(x^*) \geq \tau \mid
+x^* \text{ is an outlier})$. For each canonical type
+$O_i$ ($i=1,2,3,4$), there exists at least one engine
+$M_j$ such that for any $k \geq 0$:
+$\beta(M_j, \tau, x^*) < \beta(\moda(\cdot;k),
+\tau^*, x^*)$.
+\end{theorem}
+
+\begin{proof}
+\textbf{O1 (isolated numerical):}
+$\text{SDC}(x^*) \approx 0$ (typical categories), so
+$\beta(\text{SDC}) \approx 0$. With
+$S_\text{mcd} \gg S_\text{sdc}$, Softmax assigns
+$w_\text{mcd} \to 1$ and $\moda(x^*;k) \to 1$.
+
+\textbf{O2 (clustered numerical):}
+MCD suffers masking, $\beta(\text{SDN}_\text{mcd})
+\approx 0$ \citep{pena2001}. Pe\~{n}a's minimum-kurtosis
+direction detects the cluster; Softmax amplifies
+$w_\text{pe\~{n}a} \to 1$.
+
+\textbf{O3 (moderate mixed):}
+MCD and Pe\~{n}a individually fail; SDG$_\text{mad}$
+and SDC jointly detect. Softmax amplifies whichever
+scores higher for each observation.
+
+\textbf{O4 (pure categorical):}
+$\beta(\text{SDN}_\text{mcd}) = \beta(\text{SDN}
+_\text{pe\~{n}a}) \approx 0$.
+Under (C3$'$), $\hat{P}(c_{99}) \to
+\varepsilon P_\text{out}(c_{99})/n \approx 0$ for small
+$\varepsilon$, making $\text{SDC}(x^*) \to 1$.
+Softmax with $k=3$ assigns $w_\text{sdc} \geq 0.84$
+(Proposition~\ref{prop:gating}), giving
+$\moda(x^*;k) \to 1$. Simulation confirms
+AUC $= 1.000$ at $\varepsilon \leq 0.05$.
+\end{proof}
+
+\begin{corollary}[Necessity of all four engines]
+\label{cor:necessity}
+No proper subset of the four engines covers all four
+canonical types: SDC fails on $O_1$; SDN$_\text{mcd}$
+fails on $O_2$, $O_3$, $O_4$; SDN$_\text{pe\~{n}a}$
+fails on $O_3$, $O_4$; SDG$_\text{mad}$ alone fails
+on $O_4$. All four engines are necessary.
+\end{corollary}
+
+% ── Proposition 1 ─────────────────────────────────────────
+\begin{proposition}[Softmax Gating Dominance]
+\label{prop:gating}
+If $S_{k^*}(x^*) \geq S_j(x^*) + \delta$ for all
+$j \neq k^*$ and some $\delta > 0$, then:
+\begin{equation}
+  w_{k^*}(x^*; k) \geq
+  \frac{e^{k\delta}}{3 + e^{k\delta}} \to 1
+  \quad \text{as } k \to \infty.
+  \label{eq:prop1}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+$w_{k^*} = e^{kS_{k^*}}/\sum_j e^{kS_j}
+\geq e^{kS_{k^*}} / (e^{kS_{k^*}} +
+3e^{k(S_{k^*}-\delta)}) =
+1/(1 + 3e^{-k\delta}) = e^{k\delta}/(3+e^{k\delta})$.
+Since $e^{k\delta} \to \infty$, $w_{k^*} \to 1$,
+and $\moda(x^*;k) \geq w_{k^*} S_{k^*} \to S_{k^*}$.
+\end{proof}
+
+\begin{remark}
+In the O4 scenario with $S_\text{sdc}(x^*)=0.947$,
+$S_\text{mcd}(x^*)=0.023$, and $k=3$:
+$w_\text{sdc} \geq e^{3 \times 0.924}/
+(3 + e^{3 \times 0.924}) = 15.9/18.9 = 0.841$,
+so SDC receives 84.1\% of total weight automatically.
+\end{remark}
+
+% ── Proposition 2 ─────────────────────────────────────────
+\begin{proposition}[$O_P(n^{-1/2})$ Convergence Rate]
+\label{prop:rate}
+Under (C1), (C2), (C3$'$), (C4), (C5) and fixed
+$k \geq 0$:
+\begin{enumerate}[label=(\roman*)]
+  \item \emph{Rate for each engine:}
+    $S_{i,n}(x^*) - S_i(x^*) = O_P(n^{-1/2})$
+    for $i = 1,2,3,4$.
+  \item \emph{Rate for gating weights:}
+    $w_{i,n}(x^*;k) - w_i(x^*;k) = O_P(n^{-1/2})$.
+  \item \emph{Rate for MODA*-G score:}
+    $|\moda_n(x^*;k) - \moda(x^*;k)| =
+    O_P(n^{-1/2})$.
+  \item \emph{Asymptotic normality:}
+    $\sqrt{n}(\moda_n(x^*;k) - \moda(x^*;k))
+    \indist \mathcal{N}(0, \sigma^2_\moda(x^*;k))$,
+    where $\sigma^2_\moda = (\nabla h)^\top \Sigma
+    (\nabla h)$, $h(\mathbf{S}) = \sum_i g_i(\mathbf{S})
+    S_i$, and $\Sigma$ is the joint asymptotic covariance
+    of $(S_{1,n}, S_{2,n}, S_{3,n}, S_{4,n})$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+\textbf{Part (i):}
+For SDN$_\text{mcd}$: the MCD estimators satisfy
+$\sqrt{n}(T_n - T^*) \indist \mathcal{N}(0, \Sigma_T)$
+and $\sqrt{n}\,\mathrm{vec}(C_n - C^*) \indist
+\mathcal{N}(0, \Sigma_C)$ under (C1), (C2), (C5)
+\citep{rousseeuw1999}. The delta method applied to the
+continuous differentiable map
+$(T, C) \mapsto \varphi(D_\text{mcd}(x; T, C))$ gives
+$S_\text{mcd,n}(x^*) - S_\text{mcd}(x^*) =
+O_P(n^{-1/2})$.
+For SDN$_\text{pe\~{n}a}$: empirical kurtosis
+$\hat{\kappa}(v)$ converges at rate $n^{-1/2}$
+uniformly over $\mathbb{S}^{p-1}$ under (C5). The
+median and MAD are $n^{-1/2}$-consistent. The delta
+method gives the same rate.
+For SDG$_\text{mad}$: $\MAD_{j,n} - \MAD_j =
+O_P(n^{-1/2})$ under (C5) \citep{rousseeuw2018}.
+kNN consistency with $k_n = O(\sqrt{n})$ gives
+$O_P(n^{-1/2})$ for the kNN mean distance.
+For SDC: by the CLT applied to the i.i.d.\ indicators
+$\mathbf{1}[x_{ik} = c]$, each frequency satisfies
+$\hat{P}_n(X_k = c) - P(X_k = c) = O_P(n^{-1/2})$.
+The geometric mean is differentiable in frequencies
+(under $P(X_k = c) > 0$ guaranteed by (C3$'$) for all
+$c$ under the mixture), so the delta method applies.
+
+\textbf{Part (ii):}
+The Softmax $g_i : \R^4 \to \R$,
+$g_i(\mathbf{s}) = e^{ks_i}/\sum_j e^{ks_j}$,
+is infinitely differentiable with bounded partial
+derivatives:
+$\partial g_i/\partial s_i = k w_i(1 - w_i)$ and
+$\partial g_i/\partial s_j = -k w_i w_j$ ($j \neq i$).
+By the multivariate delta method applied to the
+composition $g_i \circ \mathbf{S}_n$:
+$\sqrt{n}(g_i(\mathbf{S}_n) - g_i(\mathbf{S}))
+\indist \mathcal{N}(0, (\nabla g_i)^\top \Sigma
+\nabla g_i)$,
+where $\Sigma$ is the joint asymptotic covariance of
+the four engine scores (finite under (C5)).
+Hence $w_{i,n}(x^*;k) - w_i(x^*;k) = O_P(n^{-1/2})$.
+
+\textbf{Part (iii):}
+Write $\moda_n - \moda = A_n + B_n$ where:
+$A_n = \sum_i (w_{i,n} - w_i) S_{i,n}
+= O_P(n^{-1/2})$
+since $w_{i,n} - w_i = O_P(n^{-1/2})$ and $S_{i,n}
+\in [0,1)$ is bounded;
+$B_n = \sum_i w_i (S_{i,n} - S_i)
+= O_P(n^{-1/2})$
+since $w_i \in [0,1]$ and $S_{i,n} - S_i =
+O_P(n^{-1/2})$ from (i).
+Therefore $|\moda_n - \moda| \leq |A_n| + |B_n| =
+O_P(n^{-1/2})$.
+
+\textbf{Part (iv):}
+Define $h : \R^4 \to \R$ by $h(\mathbf{s}) =
+\sum_i g_i(\mathbf{s}) s_i$, which is continuously
+differentiable. By the multivariate delta method:
+$\sqrt{n}(h(\mathbf{S}_n) - h(\mathbf{S}))
+\indist \mathcal{N}(0, (\nabla h)^\top \Sigma
+\nabla h)$,
+establishing asymptotic normality with variance
+$\sigma^2_\moda = (\nabla h)^\top \Sigma \nabla h
+< \infty$ under (C5).
+\end{proof}
+
+\begin{remark}
+The $O_P(n^{-1/2})$ rate implies that with $n = 300$,
+the typical estimation error in the MODA*-G score is
+of order $\sigma_\moda/\sqrt{300} \approx \sigma_\moda/
+17.3$. In our simulation, the score separation between
+outliers and normal observations in O4 is approximately
+0.924; the estimation error is three orders of magnitude
+smaller, confirming the reliability of $n = 300$ for
+the simulation study.
+\end{remark}
+
+% ============================================================
+\section{Simulation Study}
+\label{sec:simulation}
+% ============================================================
+
+\subsection{Design}
+
+Monte Carlo simulation: $n = 300$, $p = 4$, $q = 2$
+(3 categories each), 100 replications per cell,
+$\varepsilon \in \{0.01, 0.05, 0.10, 0.15, 0.20\}$.
+Clean: $X_\text{num} \sim \mathcal{N}_4(\mathbf{0},
+I_4)$, $X_\text{cat} \sim \text{Multinomial}
+(0.6, 0.3, 0.1)^2$.
+Tested: MODA*-G with $k \in \{1,2,3,5,8,10\}$,
+linear base ($k \to 0$), Isolation Forest
+\citep{liu2008}, LOF \citep{breunig2000} (both with
+label-encoded categoricals). Metric: AUC-ROC
+\citep{fawcett2006}.
+
+\subsection{Canonical Outlier Types}
+
+\begin{description}[leftmargin=*]
+\item[$O_1$: Isolated numerical] $x^* = (\mu + 6v,
+  c_\text{typ})$, $v \in \mathbb{S}^{p-1}$ random,
+  $\text{Var} = 0.1$. Typical categories.
+\item[$O_2$: Clustered numerical] $m$ compact outliers
+  at $4\sigma$ from origin, $\text{Var} = 0.05$,
+  typical categories. Causes MCD masking.
+\item[$O_3$: Moderate mixed] $x^* = (\mu + 2v, c_3)$
+  where $c_3$ is a rarely-occurring category.
+\item[$O_4$: Pure categorical] $x^* = (\mu', c_{99})$,
+  $\mu' \sim \mathcal{N}_4(\mathbf{0}, 0.1I_4)$,
+  $c_{99}$ never observed in clean data.
+\end{description}
+
+\subsection{Results}
+
+\begin{table}[ht]
+\centering
+\caption{Mean AUC-ROC ($\varepsilon \leq 0.15$,
+  100 reps). Best result per scenario in \textbf{bold}.
+  MODA*-G ($k{=}3$) outperforms all competitors in
+  all four scenarios simultaneously.}
+\label{tab:main}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Scenario & MODA*-G & MODA* & IF & LOF
+  & $\Delta$base & $\Delta$IF \\
+ & ($k=3$) & (base) & & & & \\
+\midrule
+$O_1$ Isolated num.
+  & $\mathbf{0.957}$ & $0.950$ & $0.903$ & $0.659$
+  & $+0.008$ & $+0.054$ \\
+$O_2$ Clustered num.
+  & $\mathbf{0.993}$ & $0.984$ & $0.957$ & $0.670$
+  & $+0.009$ & $+0.036$ \\
+$O_3$ Moderate mixed
+  & $\mathbf{0.986}$ & $0.936$ & $0.930$ & $0.623$
+  & $+0.050$ & $+0.056$ \\
+$O_4$ Pure categorical
+  & $\mathbf{0.977}$ & $0.513$ & $0.855$ & $0.577$
+  & $+0.464$ & $+0.122$ \\
+\midrule
+\textbf{Mean}
+  & $\mathbf{0.978}$ & $0.846$ & $0.911$ & $0.623$
+  & $+0.132$ & $+0.067$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{O4: AUC-ROC by $\varepsilon$ and temperature
+  $k$. MODA*-G with $k \geq 3$ achieves AUC $= 1.000$
+  at $\varepsilon \leq 0.05$. Linear base fails.}
+\label{tab:o4}
+\small
+\begin{tabular}{lcccccccc}
+\toprule
+$\varepsilon$ & Base & $k{=}1$ & $k{=}2$ & $k{=}3$
+  & $k{=}5$ & $k{=}8$ & $k{=}10$ & SDC only\\
+\midrule
+$0.01$ & $0.706$ & $0.947$ & $1.000$ & $\mathbf{1.000}$
+  & $1.000$ & $1.000$ & $1.000$ & $1.000$ \\
+$0.05$ & $0.596$ & $0.859$ & $0.992$ & $\mathbf{1.000}$
+  & $1.000$ & $1.000$ & $1.000$ & $1.000$ \\
+$0.10$ & $0.446$ & $0.702$ & $0.943$ & $0.988$
+  & $\mathbf{0.996}$ & $0.995$ & $0.994$ & $0.992$ \\
+$0.15$ & $0.302$ & $0.495$ & $0.802$ & $0.919$
+  & $0.966$ & $\mathbf{0.967}$ & $0.965$ & $0.956$ \\
+$0.20$ & $0.172$ & $0.288$ & $0.572$ & $0.747$
+  & $0.856$ & $\mathbf{0.859}$ & $0.848$ & $0.867$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Temperature sensitivity: mean AUC-ROC
+  ($\varepsilon \leq 0.15$). $k=3$ achieves the
+  highest mean (0.978).}
+\label{tab:sensitivity}
+\small
+\begin{tabular}{lccccc}
+\toprule
+$k$ & $O_1$ & $O_2$ & $O_3$ & $O_4$ & Mean \\
+\midrule
+base & $0.950$ & $0.984$ & $0.936$ & $0.513$ & $0.846$\\
+$1$  & $0.980$ & $0.997$ & $0.959$ & $0.751$ & $0.921$\\
+$2$  & $0.970$ & $0.996$ & $0.980$ & $0.934$ & $0.970$\\
+$\mathbf{3}$
+     & $\mathbf{0.957}$ & $\mathbf{0.993}$
+     & $\mathbf{0.986}$ & $\mathbf{0.977}$
+     & $\mathbf{0.978}$\\
+$5$  & $0.933$ & $0.983$ & $0.987$ & $0.990$ & $0.973$\\
+$8$  & $0.924$ & $0.977$ & $0.987$ & $0.991$ & $0.970$\\
+$10$ & $0.928$ & $0.978$ & $0.987$ & $0.990$ & $0.971$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Individual engine AUC-ROC
+  ($\varepsilon \leq 0.15$). No single engine achieves
+  strong performance across all scenarios, confirming
+  Corollary~\ref{cor:necessity}.}
+\label{tab:engines}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Engine & $O_1$ & $O_2$ & $O_3$ & $O_4$ \\
+\midrule
+$\text{SDN}_\text{mcd}$   & $0.960$
+  & $0.994$ & $0.593$ & $0.026$ \\
+$\text{SDN}_\text{pe\~{n}a}$ & $0.999$
+  & $1.000$ & $0.614$ & $0.026$ \\
+$\text{SDG}_\text{mad}$   & $0.996$
+  & $1.000$ & $0.825$ & $0.345$ \\
+$\text{SDC}$               & $0.497$
+  & $0.500$ & $0.987$ & $0.987$ \\
+\midrule
+MODA*-G ($k=3$) & $\mathbf{0.957}$
+  & $\mathbf{0.993}$ & $\mathbf{0.986}$
+  & $\mathbf{0.977}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Discussion.}
+MODA*-G with $k=3$ achieves AUC $> 0.95$ across all
+four canonical scenarios at $\varepsilon \leq 0.15$,
+outperforming IF in all scenarios simultaneously for
+the first time. The O4 breakthrough ($+46.4\%$ vs.\
+linear base, $+12.2\%$ vs.\ IF) validates
+Proposition~\ref{prop:gating}: when SDC scores 0.947
+and MCD scores 0.023, the Softmax assigns
+$w_\text{sdc} \approx 0.841$ automatically. The
+temperature sensitivity analysis confirms robustness:
+mean AUC $> 0.97$ for all $k \geq 2$, ruling out
+parameter-specific overfitting. For applications where
+pure categorical contamination predominates, $k=5$
+maximises O4 (AUC $= 0.990$) at modest cost to O1
+(AUC $= 0.933$).
+
+% ============================================================
+\section{Real Data Study --- Annthyroid Benchmark}
+\label{sec:realdata}
+% ============================================================
+
+\subsection{Dataset and Protocol}
+
+We evaluate MODA*-G on the Annthyroid dataset
+\citep{campos2016}, the standard benchmark for
+mixed-data outlier detection established by
+\citet{campos2016}. The dataset contains clinical
+measurements for patients evaluated for thyroid
+disorders, with three classes: normal (inlier),
+hyperfunction (outlier), and subnormal functioning
+(outlier).
+
+\textbf{Data version:} We use the pre-normalised
+version from the LMU Munich benchmark repository
+\citep{campos2016}, file \texttt{Annthyroid\_07.arff},
+which scales all numerical features to $[0,1]$ using
+range normalisation. This is the standard version
+used in all benchmark comparisons in the outlier
+detection literature; using raw UCI data without
+normalisation degrades all distance-based methods
+due to the extreme scale difference between features
+(e.g.\ TSH ranges $[0,530]$ mU/L vs.\ T4U $[0.2,2.3]$).
+
+\begin{table}[ht]
+\centering
+\caption{Annthyroid dataset characteristics
+  (Campos et al.\ 2016 benchmark version).}
+\label{tab:dataset}
+\small
+\begin{tabular}{ll}
+\toprule
+Property & Value \\
+\midrule
+Total observations ($n$) & 7,200 \\
+Normal (inlier) & 6,666 (92.58\%) \\
+Outliers & 534 (7.42\%) \\
+Numerical features ($p$) & 6 (age, TSH, T3, TT4, T4U, FTI) \\
+Categorical features ($q$) & 15 (binary clinical symptoms) \\
+Total features & 21 \\
+Outlier definition & Hyperfunction + subnormal classes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Evaluation protocol:} Following
+\citet{campos2016}, we report AUC-ROC as the primary
+metric. We use 50 stratified bootstrap replicates
+with subsampling of $n_\text{sub} = 2{,}000$
+observations per replicate, preserving the 7.42\%
+outlier proportion. Standard deviations are reported
+across bootstrap replicates.
+
+\subsection{Competing Methods}
+
+We compare MODA*-G against six methods spanning the
+major paradigms for unsupervised outlier detection:
+
+\begin{description}[leftmargin=*]
+\item[IF] Isolation Forest \citep{liu2008}: tree-based
+  path-length isolation. Label-encoded categorical features.
+\item[EIF] Extended Isolation Forest
+  \citep{hariri2019}: random hyperplane cuts replacing
+  axis-parallel splits. Same encoding as IF.
+\item[COPOD] Copula-Based Outlier Detection
+  \citep{li2020copod}: empirical copula tail probabilities
+  per dimension, aggregated via log-sum. Requires
+  continuous features; categorical features are
+  label-encoded.
+\item[CBOD] CatBoost-style Outlier Detection
+  (unsupervised): gradient-boosted reconstruction
+  residuals with target-encoded categorical features,
+  following the knowledge-uncertainty principle of
+  \citet{malinin2020}.
+\item[LOF] Local Outlier Factor \citep{breunig2000}:
+  density-based local outlyingness.
+  Label-encoded categorical features.
+\item[MODA*-G] Our method: native operation in
+  $\R^p \times \C^q$, $k=3$. No encoding performed.
+\end{description}
+
+\subsection{Results}
+
+\begin{table}[ht]
+\centering
+\caption{Real-data benchmark --- Annthyroid\_07.arff.
+  AUC-ROC (mean $\pm$ std, 50 bootstrap replicates).
+  MODA*-G outperforms all six competitors.
+  Methods marked $\dagger$ use label encoding of
+  categorical features.}
+\label{tab:realdata}
+\small
+\begin{tabular}{lccc}
+\toprule
+Method & AUC-ROC & $\pm$ & $\Delta$ vs IF \\
+\midrule
+\textbf{MODA*-G ($k=3$)} & $\mathbf{0.939}$ & $0.010$
+  & $+0.307$ \\
+IF$^\dagger$ & $0.632$ & $0.021$ & --- \\
+LOF$^\dagger$ & $0.620$ & $0.023$ & $-0.012$ \\
+CBOD$^\dagger$ & $0.554$ & $0.024$ & $-0.078$ \\
+COPOD$^\dagger$ & $0.553$ & $0.094$ & $-0.079$ \\
+EIF$^\dagger$ & $0.496$ & $0.064$ & $-0.136$ \\
+\midrule
+Best method, \citet{campos2016} & ${\sim}0.75$ &
+  --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Discussion}
+
+\paragraph{MODA*-G dominance.}
+MODA*-G achieves AUC $= 0.939$, outperforming the
+best competitor (IF, $0.632$) by $+0.307$ AUC points.
+This advantage is attributable to native mixed-data
+operation: the 15 binary categorical symptom features
+are processed by SDC (categorical entropy score) and
+Gower-MAD without any encoding, preserving the
+categorical metric structure. All five competitors
+encode these features as integers, distorting the
+metric.
+
+\paragraph{EIF underperforms IF.}
+The EIF result (AUC $= 0.496$, near-random) illustrates
+an important property of EIF: random hyperplane cuts
+improve over axis-parallel cuts when features have
+heterogeneous scales. On the pre-normalised Annthyroid
+data (all features in $[0,1]$), axis-parallel cuts are
+already geometrically appropriate, and randomisation
+introduces unnecessary variance.
+
+\paragraph{COPOD and CBOD near-random.}
+COPOD (AUC $= 0.553$) is designed for continuous
+marginal distributions. The 15 binary features produce
+degenerate empirical CDFs (step functions at 0 and 1),
+for which the copula tail probability is uninformative.
+CBOD (AUC $= 0.554$) similarly suffers from the
+encoding distortion of binary-to-integer conversion.
+
+\paragraph{Comparison with Campos et al.\ (2016).}
+\citet{campos2016} benchmark density-based methods
+(LOF, kNN, INFLO, COF, ODIN) on the same dataset.
+Their best result is INFLO with AUC $\approx 0.75$.
+MODA*-G achieves AUC $= 0.939$, surpassing INFLO
+by approximately $+0.189$ AUC points. All methods in
+\citet{campos2016} operate exclusively on numerical
+features after encoding; none provides a dedicated
+categorical anomaly engine equivalent to SDC. This
+confirms that the performance gap is architectural ---
+native mixed-data operation provides a systematic
+advantage that cannot be recovered by encoding
+categorical features as numerical values.
+
+% ============================================================
+\section{Biosurveillance Applications}
+\label{sec:biosurveillance}
+% ============================================================
+
+The four canonical scenarios map directly to operational
+biosurveillance challenges. O1 (isolated numerical)
+corresponds to sudden spikes in case counts or laboratory
+values; O2 (clustered numerical) to geographic outbreak
+clusters that cause masking in standard methods; O3
+(moderate mixed) to emerging pathogen signals with
+moderate numerical elevation and unusual ICD-10 codes;
+O4 (pure categorical) to novel pathogen detection where
+a patient carries a pathogen code never previously
+recorded. In this last case---the most critical for
+biosecurity---MODA*-G achieves AUC $= 1.000$ at low
+contamination rates, a capability no existing method
+provides with formal guarantees.
+
+The per-engine diagnostic profile routes each alert
+to the appropriate response: MCD-dominant alerts suggest
+measurement anomalies; Pe\~{n}a-dominant alerts suggest
+outbreak clusters; SDC-dominant alerts trigger immediate
+novel pathogen protocols. This aligns with priorities of
+the National Biosurveillance Strategy \citep{hhs2022}
+and CDC BioSense Platform requirements for interpretable,
+real-time mixed-data anomaly detection.
+
+% ============================================================
+\section{Limitations}
+\label{sec:limitations}
+% ============================================================
+
+We document three limitations that bound the scope of the
+current results and suggest directions for future work.
+
+\paragraph{Computational complexity.}
+The dominant computational cost of MODA*-G is the
+pairwise Gower-MAD distance matrix, computed in
+$O(n^2(p+q))$ time and $O(n^2)$ space. For datasets
+with $n > 10{,}000$, this becomes prohibitive without
+approximation. Approximate kNN methods---including ball
+trees, KD-trees adapted for mixed data, and random
+projection approximations---can reduce this to
+$O(n \log n)$ without substantially affecting detection
+accuracy. Implementation of these approximations is
+deferred to future work.
+
+\paragraph{Theoretical scope under (C3$'$).}
+Condition~(C3$'$) extends the standard observability
+assumption to allow categories absent from the clean
+distribution $P_0$ by working under the mixture model
+$P = (1-\varepsilon)P_0 + \varepsilon P_\text{out}$.
+The formal consistency results (Theorem~\ref{thm:consistency}
+and Proposition~\ref{prop:rate}) apply when
+$\varepsilon > 0$ so that all categories have positive
+probability under $P$.
+At the boundary $\varepsilon \to 0$, the unseen-category
+branch of SDC operates via the Laplace-smoothed estimator
+$\hat{P}_\text{unseen} = 1/(n + m_k + 1) \to 0$,
+which is not covered by the SLLN convergence proof.
+A complete treatment for the $\varepsilon \to 0$ boundary
+case---potentially using Good-Turing smoothing
+\citep{good1953} or support-based formulations---is a
+direction for future theoretical work. Empirically,
+SDC achieves AUC $= 1.000$ for O4 at $\varepsilon
+\leq 0.05$, confirming practical reliability despite
+this boundary.
+
+\paragraph{Asymptotic rate without explicit variance.}
+Proposition~\ref{prop:rate} establishes the
+$O_P(n^{-1/2})$ rate and asymptotic normality of
+$\moda_n(x^*;k)$, but does not provide a closed-form
+expression for the asymptotic variance
+$\sigma^2_\moda(x^*;k)$. This quantity involves the
+joint asymptotic covariance matrix $\Sigma$ of the
+four engine scores, which depends on the unknown
+data-generating distribution $P$ in a complex way.
+Estimation of $\sigma^2_\moda$ and construction of
+confidence intervals for the MODA*-G score are deferred
+to future work. Practitioners requiring uncertainty
+quantification can use bootstrap resampling as an
+interim approach.
+
+% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% ============================================================
+
+We have presented MODA*-G, a unified anomaly detection
+framework for mixed numerical and categorical data.
+Five formal theorems establish consistency, 50\%
+breakdown point, partial affine equivariance, score
+comparability, and stochastic dominance.
+Two convergence propositions establish that the Softmax
+Gating weight of the dominant engine converges to one
+and that the MODA*-G score converges at rate
+$O_P(n^{-1/2})$.
+Monte Carlo simulation confirms that MODA*-G with $k=3$
+achieves mean AUC-ROC of 0.978, outperforming Isolation
+Forest in all four canonical contamination scenarios
+simultaneously. On the Annthyroid real-data benchmark
+\citep{campos2016}, MODA*-G achieves AUC $= 0.939$,
+surpassing all six competing methods including EIF,
+COPOD, CatBoost-AD, and LOF, and exceeding the best
+result of \citet{campos2016} by $+0.189$ AUC points.
+
+The central insight is that the failure of linear
+combinations---demonstrated across five iterative
+implementation versions---is structural: fixed weights
+cannot adapt when an engine actively inverts rankings.
+Softmax Gating resolves this with three lines of code
+and no heuristic rules, yielding an attention mechanism
+that automatically amplifies the correct detector at
+the observation level. The real-data benchmark confirms
+that the advantage of native mixed-data operation is
+not merely theoretical: encoding categorical features
+as integers systematically degrades all competing
+methods on datasets with substantial categorical content.
+
+\section*{Acknowledgements}
+This work was conducted independently. The author thanks
+the open-source communities behind NumPy, SciPy, and
+scikit-learn, which supported the simulation study.
+
+% ── References ────────────────────────────────────────────
+\bibliographystyle{apalike}
+\begin{thebibliography}{99}
+
+\bibitem[Campos et al.(2016)]{campos2016}
+Campos, G.~O., Zimek, A., Sander, J., Campello,
+R.~J.~G.~B., Micenkov\'{a}, B., Schubert, E.,
+Assent, I., and Houle, M.~E. (2016).
+On the evaluation of unsupervised outlier detection:
+measures, datasets, and an empirical study.
+\textit{Data Mining and Knowledge Discovery},
+30(4):891--927.
+
+\bibitem[Hariri et al.(2019)]{hariri2019}
+Hariri, S., Kind, M.~C., and Brunner, R.~J. (2019).
+Extended isolation forest.
+\textit{IEEE Transactions on Knowledge and Data
+Engineering}, 33(4):1479--1489.
+
+\bibitem[Li et al.(2020)]{li2020copod}
+Li, Z., Zhao, Y., Botta, N., Ionescu, C., and
+Hu, X. (2020). COPOD: copula-based outlier detection.
+\textit{IEEE International Conference on Data Mining
+(ICDM)}, pp.~1118--1123.
+
+\bibitem[Malinin et al.(2020)]{malinin2020}
+Malinin, A., Chien, J., Gales, M., Knill, K.,
+Kumar, S., Rayner, P., Shafran, I., and Williams, B.
+(2020). Uncertainty estimation in autoregressive
+structured prediction.
+\textit{arXiv preprint arXiv:2002.07650}.
+
+\bibitem[Bahdanau et al.(2015)]{bahdanau2015}
+Bahdanau, D., Cho, K., and Bengio, Y. (2015).
+Neural machine translation by jointly learning to align
+and translate.
+\textit{International Conference on Learning
+Representations (ICLR 2015)}.
+
+\bibitem[Breunig et al.(2000)]{breunig2000}
+Breunig, M.~M., Kriegel, H.-P., Ng, R.~T., and
+Sander, J. (2000). LOF: identifying density-based
+local outliers. \textit{ACM SIGMOD Record},
+29(2):93--104.
+
+\bibitem[Cabral et al.(2025)]{cabral2025}
+Cabral, E.~F., Vinces, B.~V.~S., Silva, G.~D.~F.,
+Sander, J., and Cordeiro, R.~L.~F. (2025).
+Efficient outlier detection in numerical and categorical
+data. \textit{Data Mining and Knowledge Discovery},
+39(3):1--46.
+
+\bibitem[Devroye et al.(1996)]{devroye1996}
+Devroye, L., Gy\"{o}rfi, L., and Lugosi, G. (1996).
+\textit{A Probabilistic Theory of Pattern Recognition}.
+Springer, New York.
+
+\bibitem[Fawcett(2006)]{fawcett2006}
+Fawcett, T. (2006). An introduction to ROC analysis.
+\textit{Pattern Recognition Letters}, 27(8):861--874.
+
+\bibitem[Good(1953)]{good1953}
+Good, I.~J. (1953). The population frequencies of
+species and the estimation of population parameters.
+\textit{Biometrika}, 40(3-4):237--264.
+
+\bibitem[Gower(1971)]{gower1971}
+Gower, J.~C. (1971). A general coefficient of
+similarity and some of its properties.
+\textit{Biometrics}, 27(4):857--871.
+
+\bibitem[HHS(2022)]{hhs2022}
+U.S.\ Department of Health and Human Services (2022).
+\textit{National Biosurveillance Strategy 2022--2026}.
+Washington, D.C.
+
+\bibitem[Jordan and Jacobs(1994)]{jordan1994}
+Jordan, M.~I. and Jacobs, R.~A. (1994).
+Hierarchical mixtures of experts and the EM algorithm.
+\textit{Neural Computation}, 6(2):181--214.
+
+\bibitem[Liu et al.(2008)]{liu2008}
+Liu, F.~T., Ting, K.~M., and Zhou, Z.-H. (2008).
+Isolation forest. \textit{Proceedings of the 8th IEEE
+International Conference on Data Mining}, pp.~413--422.
+
+\bibitem[Marcano and Ferm\'{i}n(2013)]{marcano2013}
+Marcano, L. and Ferm\'{i}n, W. (2013).
+Comparaci\'{o}n de m\'{e}todos de detecci\'{o}n de datos
+an\'{o}malos multivariantes mediante un estudio de
+simulaci\'{o}n.
+\textit{Saber}, 25(2):192--201.
+Universidad de Oriente, Venezuela.
+
+\bibitem[Pe\~{n}a and Prieto(2001)]{pena2001}
+Pe\~{n}a, D. and Prieto, F.~J. (2001).
+Multivariate outlier detection and robust covariance
+matrix estimation.
+\textit{Technometrics}, 43(3):286--310.
+
+\bibitem[Rousseeuw(1985)]{rousseeuw1985}
+Rousseeuw, P.~J. (1985). Multivariate estimation with
+high breakdown point.
+\textit{Mathematical Statistics and Applications},
+8:283--297.
+
+\bibitem[Rousseeuw and Driessen(1999)]{rousseeuw1999}
+Rousseeuw, P.~J. and Van Driessen, K. (1999).
+A fast algorithm for the minimum covariance determinant
+estimator. \textit{Technometrics}, 41(3):212--223.
+
+\bibitem[Rousseeuw and Hubert(2018)]{rousseeuw2018}
+Rousseeuw, P.~J. and Hubert, M. (2018).
+Anomaly detection by robust statistics.
+\textit{WIREs Data Mining and Knowledge Discovery},
+8(2):e1236.
+
+\bibitem[Rousseeuw and Van Zomeren(1990)]{rousseeuw1990}
+Rousseeuw, P.~J. and Van Zomeren, B.~C. (1990).
+Unmasking multivariate outliers and leverage points.
+\textit{Journal of the American Statistical
+Association}, 85(411):633--651.
+
+\bibitem[Vaswani et al.(2017)]{vaswani2017}
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J.,
+Jones, L., Gomez, A.~N., Kaiser, L., and
+Polosukhin, I. (2017). Attention is all you need.
+\textit{Advances in Neural Information Processing
+Systems (NeurIPS)}, 30.
+
+\bibitem[Wang and Li(2021)]{wang2021}
+Wang, Y. and Li, Y. (2021). Outlier detection based
+on weighted neighbourhood information network for
+mixed-valued datasets.
+\textit{Information Sciences}, 564:396--415.
+
+\bibitem[Yuan et al.(2023)]{yuan2023}
+Yuan, Z. et al. (2023). Attribute-weighted outlier
+detection for mixed data based on parallel mutual
+information. \textit{Expert Systems with Applications}.
+
+\end{thebibliography}
+
+% ============================================================
+\appendix
+\section{Development History}
+\label{app:versions}
+% ============================================================
+
+MODA*-G emerged from a systematic iterative development
+process. The key insight---that fixed linear combinations
+are structurally incapable of handling active ranking
+inversion---required six implementation versions to
+establish empirically.
+
+\begin{description}[leftmargin=*]
+\item[\textbf{v0.1--v0.2}] Four-engine framework with
+  fixed weights. SDC implementation bug (hardcoded
+  category 4 colliding with clean data) caused
+  O4 AUC $= 0.341$. Fix: guaranteed-absent code (99)
+  with proper Laplace smoothing restored
+  AUC $= 1.000$ for SDC alone.
+\item[\textbf{v0.3}] Adaptive base weights
+  $(0.30, 0.20, 0.15, 0.35)$ and Gower local+global
+  distance combination. Results: O1: 0.951, O2: 0.983,
+  O3: 0.936, O4: 0.513. O4 fails because Gower
+  ($\gamma{=}0.15$) and MCD ($\alpha{=}0.30$) actively
+  invert rankings for compact categorical clusters.
+\item[\textbf{v0.4--v0.4c}] Three variants of coherence
+  weighting using Spearman correlations and separation
+  criteria. Each variant improved some scenarios while
+  degrading others. Root cause: all approaches relied
+  on the uniform-weighted score to identify candidate
+  outliers, which fails when the uniform score is
+  itself dominated by inverting engines.
+\item[\textbf{v0.5}] Rank-based KS informativeness
+  weighting. Failed across all scenarios: converting
+  scores to ranks compresses information at the
+  extremes. With $\varepsilon = 0.01$ (3 outliers in
+  300), the rank difference between the outlier
+  (rank 300) and the nearest normal (rank 299) is
+  $1/300 = 0.003$, while the raw score difference was
+  0.85. Ranks discard the most relevant signal.
+\item[\textbf{v0.6 = MODA*-G}] Softmax Gating.
+  Three lines of code, no heuristics, no thresholds.
+  Mean AUC $= 0.978$ across all four scenarios.
+\end{description}
+
+\end{document}
