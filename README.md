@@ -3,7 +3,7 @@ MODA*-G — Mixed-Data Outlier Divergence Analysis with Softmax Gating
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)
 Author: Luis J. Marcano Verde · Independent Statistical Consultant · New York, NY  
-Paper: Zenodo preprint | Under review at Technometrics
+Paper: Zenodo preprint
 ---
 What is MODA*-G?
 MODA*-G is a novel unsupervised anomaly detection framework for tabular
