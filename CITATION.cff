@@ -5,7 +5,7 @@ title: "MODA*-G: Mixed-Data Outlier Divergence Analysis with Softmax Gating"
 version: 0.6.0
 date-released: 2026-04-05
 authors:
-  - family-names: Marcano Verde
+  - family-names: Marcano-Verde
     given-names: Luis J.
     email: luisjmarcanoverde@gmail.com
     orcid: https://orcid.org/0009-0003-4672-1890
@@ -29,7 +29,7 @@ repository-code: "https://github.com/luisjmarcano/MODA-Star-G"
 preferred-citation:
   type: article
   authors:
-    - family-names: Marcano Verde
+    - family-names: Marcano-Verde
       given-names: Luis J.
   title: "MODA*-G: A Robust Mixed-Data Outlier Detection Framework with Attention-based Softmax Gating"
   year: 2026
